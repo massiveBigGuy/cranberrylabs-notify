@@ -1,0 +1,15 @@
+services:
+  notify:
+    build:
+      dockerfile: Dockerfile
+    container_name: cranberrylabs-notify
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    ports:
+      - "3200:3200"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,20 @@
+{
+  "name": "cranberrylabs-notify",
+  "version": "0.1.0",
+  "description": "Custom cluster notification and alerting system for cranberrylabs Proxmox infrastructure",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node src/index.js"
+  },
+  "author": "Spencer",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cron": "^3.1.0",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "nodemailer": "^6.9.0"
+  }
+}
