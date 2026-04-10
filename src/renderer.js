@@ -34,18 +34,41 @@ const SEVERITY_COLOR = {
 // Helpers
 // ──────────────────────────────────────────────
 
+const DETAIL_KEY_SUB = {
+  mem: 'Memory', cpu: 'CPU', io: 'I/O', vm: 'VM', id: 'ID',
+  upid: 'UPID', percent: '%', url: 'URL',
+};
+
+function formatDetailKey(key) {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
+    .split(' ')
+    .map(w => {
+      const s = DETAIL_KEY_SUB[w.toLowerCase()];
+      return s !== undefined ? s : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(' ')
+    .replace(' %', '%');
+}
+
 /**
- * Render a detail object as indented JSON safe for inline HTML.
- * Uses <pre> which Gmail honours, and escapes HTML entities so
- * angle brackets and ampersands in values don't break rendering.
+ * Render a detail object as human-readable key-value pairs.
+ * Keys are converted from camelCase to readable labels (e.g. memPercent → Memory%).
  */
 function detailBlock(detail) {
-  const json = JSON.stringify(detail, null, 2);
-  const escaped = json
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  return '<pre style="margin:12px 0 0;background:#0f1117;border-radius:6px;padding:12px 14px;font-family:monospace;font-size:12px;color:#94a3b8;white-space:pre;overflow-x:auto;line-height:1.5;">' + escaped + '</pre>';
+  const rows = Object.entries(detail)
+    .filter(([, v]) => v !== null && v !== undefined)
+    .map(([k, v]) => {
+      const label = formatDetailKey(k);
+      const val = String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return '<div style="font-size:12px;line-height:1.8;">' +
+        '<span style="color:#64748b;">' + label + ':</span>&nbsp;' +
+        '<span style="color:#94a3b8;">' + val + '</span>' +
+        '</div>';
+    })
+    .join('');
+  return '<div style="margin:12px 0 0;background:#0f1117;border-radius:6px;padding:10px 14px;">' + rows + '</div>';
 }
 
 function formatTime(iso) {
