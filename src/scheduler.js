@@ -101,6 +101,13 @@ class Scheduler {
     console.log('[scheduler] Manual digest trigger');
     await this._sendDigest();
   }
+
+  /**
+   * Returns the next scheduled digest time as an ISO string, or null if not started.
+   */
+  get nextDigest() {
+    return this._job ? this._job.nextDate().toISO() : null;
+  }
 }
 
 module.exports = Scheduler;

@@ -82,19 +82,29 @@ collector.onEvent((event) => {
 // HTTP API
 // ──────────────────────────────────────────────
 
+const path    = require('path');
 const express = require('express');
 const app = express();
 const PORT = process.env.NOTIFY_PORT || 3200;
 
-app.get('/health', (req, res) => {
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+
+app.get('/health', (_req, res) => {
+  res.json({ service: 'cranberrylabs-notify', status: 'ok' });
+});
+
+app.get('/status', (_req, res) => {
   res.json({
     service: 'cranberrylabs-notify',
     status: 'ok',
     uptime: process.uptime(),
     events: {
       total: store.count,
-      immediate: store.query({ severity: Severity.CRITICAL }).length,
+      critical: store.query({ severity: Severity.CRITICAL }).length,
     },
+    nextDigest: scheduler.nextDigest,
   });
 });
 
@@ -132,7 +142,7 @@ app.get('/events/summary', (req, res) => {
 });
 
 // Manual digest trigger — for testing without waiting for 4 PM
-app.post('/digest/send', async (req, res) => {
+app.post('/digest/send', async (_req, res) => {
   try {
     await scheduler.sendDigestNow();
     res.json({ ok: true, message: 'Digest sent' });
@@ -147,7 +157,8 @@ app.post('/digest/send', async (req, res) => {
 
 app.listen(PORT, async () => {
   console.log(`[notify-api] Listening on port ${PORT}`);
-  console.log(`[notify-api] Health:       http://localhost:${PORT}/health`);
+  console.log(`[notify-api] Dashboard:    http://localhost:${PORT}/`);
+  console.log(`[notify-api] Status:       http://localhost:${PORT}/status`);
   console.log(`[notify-api] Events:       http://localhost:${PORT}/events`);
   console.log(`[notify-api] Summary:      http://localhost:${PORT}/events/summary`);
   console.log(`[notify-api] Send digest:  POST http://localhost:${PORT}/digest/send`);

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>cranberrylabs · notify</title>
+  <style>
+    :root {
+      --bg:          #0d1117;
+      --surface:     #161b22;
+      --border:      #30363d;
+      --text:        #c9d1d9;
+      --text-dim:    #8b949e;
+      --blue:        #58a6ff;
+      --green:       #3fb950;
+      --yellow:      #d29922;
+      --red:         #f85149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'SF Mono', 'Consolas', 'Liberation Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .logo { font-size: 15px; font-weight: 600; color: var(--blue); }
+    .logo span { color: var(--text-dim); font-weight: 400; }
+    .status-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+    .status-dot.online  { background: var(--green); }
+    .status-dot.offline { background: var(--red); }
+
+    /* ── Status bar ─────────────────────────────── */
+    .statusbar {
+      display: flex;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .stat {
+      padding: 8px 24px 8px 0;
+      margin-right: 24px;
+      font-size: 12px;
+      color: var(--text-dim);
+      border-right: 1px solid var(--border);
+    }
+    .stat:last-child { border-right: none; }
+    .stat strong { color: var(--text); }
+
+    /* ── Summary cards ──────────────────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 16px 20px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left-width: 3px;
+      border-radius: 6px;
+      padding: 14px 16px;
+    }
+    .card.critical { border-left-color: var(--red); }
+    .card.warning  { border-left-color: var(--yellow); }
+    .card.info     { border-left-color: var(--green); }
+    .card-count { font-size: 28px; font-weight: 700; line-height: 1; }
+    .card.critical .card-count { color: var(--red); }
+    .card.warning  .card-count { color: var(--yellow); }
+    .card.info     .card-count { color: var(--green); }
+    .card-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Filters ─────────────────────────────────── */
+    .filters {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-wrap: wrap;
+    }
+    .filters label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+    select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 4px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    select:focus { outline: 1px solid var(--blue); }
+    .filter-spacer { flex: 1; }
+    .refresh-info { font-size: 11px; color: var(--text-dim); }
+
+    /* ── Events table ────────────────────────────── */
+    .table-wrap { flex: 1; overflow-x: auto; padding: 0 20px 20px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+    thead th {
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-dim);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 11px;
+    }
+    tbody tr { border-bottom: 1px solid #21262d; }
+    tbody tr:hover { background: var(--surface); }
+    tbody td { padding: 7px 10px; vertical-align: top; }
+    .ts { color: var(--text-dim); white-space: nowrap; }
+    .node-cluster { color: var(--text-dim); font-style: italic; }
+
+    .badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge.critical { background: rgba(248,81,73,0.12);  color: var(--red);    border: 1px solid rgba(248,81,73,0.3); }
+    .badge.warning  { background: rgba(210,153,34,0.12); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+    .badge.info     { background: rgba(63,185,80,0.12);  color: var(--green);  border: 1px solid rgba(63,185,80,0.3); }
+
+    .route-tag { font-size: 10px; color: var(--text-dim); font-style: italic; }
+    .route-tag.immediate { color: var(--red); font-weight: 600; }
+
+    .empty { text-align: center; padding: 40px; color: var(--text-dim); }
+
+    /* ── Footer ──────────────────────────────────── */
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+    button {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 12px;
+      font-size: 12px;
+      border-radius: 4px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Toast ───────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 60px;
+      right: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      animation: slideUp 0.2s ease;
+    }
+    .toast.success { border-color: var(--green); color: var(--green); }
+    .toast.error   { border-color: var(--red);   color: var(--red); }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">cranberrylabs<span> · notify</span></div>
+    <div class="status-badge">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">connecting…</span>
+    </div>
+  </header>
+
+  <div class="statusbar">
+    <div class="stat">Uptime <strong id="uptime">—</strong></div>
+    <div class="stat">Total events <strong id="totalEvents">—</strong></div>
+    <div class="stat">Critical <strong id="criticalCount">—</strong></div>
+    <div class="stat">Next digest <strong id="nextDigest">—</strong></div>
+  </div>
+
+  <div class="cards">
+    <div class="card critical">
+      <div class="card-count" id="card-critical">—</div>
+      <div class="card-label">Critical · last 24h</div>
+    </div>
+    <div class="card warning">
+      <div class="card-count" id="card-warning">—</div>
+      <div class="card-label">Warning · last 24h</div>
+    </div>
+    <div class="card info">
+      <div class="card-count" id="card-info">—</div>
+      <div class="card-label">Info · last 24h</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <label>Severity
+      <select id="filterSeverity">
+        <option value="">All</option>
+        <option value="critical">Critical</option>
+        <option value="warning">Warning</option>
+        <option value="info">Info</option>
+      </select>
+    </label>
+    <label>Node
+      <select id="filterNode">
+        <option value="">All nodes</option>
+      </select>
+    </label>
+    <label>Since
+      <select id="filterSince">
+        <option value="1">Last hour</option>
+        <option value="6">Last 6h</option>
+        <option value="24" selected>Last 24h</option>
+        <option value="168">Last 7 days</option>
+        <option value="">All time</option>
+      </select>
+    </label>
+    <div class="filter-spacer"></div>
+    <span class="refresh-info" id="refreshInfo">—</span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Severity</th>
+          <th>Node</th>
+          <th>Type</th>
+          <th>Subject</th>
+          <th>Route</th>
+        </tr>
+      </thead>
+      <tbody id="eventsBody">
+        <tr><td colspan="6" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span id="eventCount">—</span>
+    <button id="sendDigest">Send Digest Now</button>
+  </footer>
+
+  <script>
+    // Self-discover the API base from the current URL.
+    // Works whether accessed directly at localhost:3200 or behind a proxy at /apps/notify.
+    const API_BASE = window.location.origin + window.location.pathname.replace(/\/+$/, '');
+
+    // ── State ──────────────────────────────────────────────
+    const seenNodes = new Set();
+    let countdown = 30;
+    let countdownTimer = null;
+
+    // ── Helpers ────────────────────────────────────────────
+    function formatUptime(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60);
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function formatTime(iso) {
+      return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function formatNextDigest(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      const diffMs = d - Date.now();
+      const h = Math.floor(diffMs / 3600000);
+      const m = Math.floor((diffMs % 3600000) / 60000);
+      const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${time} (in ${h}h ${m}m)`;
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function toast(msg, type = 'success') {
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+
+    function buildQuery() {
+      const params = new URLSearchParams();
+      const sev   = document.getElementById('filterSeverity').value;
+      const node  = document.getElementById('filterNode').value;
+      const hours = document.getElementById('filterSince').value;
+      if (sev)   params.set('severity', sev);
+      if (node)  params.set('node', node);
+      if (hours) params.set('since', new Date(Date.now() - hours * 3600000).toISOString());
+      const qs = params.toString();
+      return qs ? '?' + qs : '';
+    }
+
+    // ── Fetchers ───────────────────────────────────────────
+    async function fetchStatus() {
+      try {
+        const res = await fetch(API_BASE + '/status');
+        const d   = await res.json();
+        document.getElementById('statusDot').className   = 'status-dot online';
+        document.getElementById('statusText').textContent = 'online';
+        document.getElementById('uptime').textContent        = formatUptime(d.uptime);
+        document.getElementById('totalEvents').textContent   = d.events.total;
+        document.getElementById('criticalCount').textContent = d.events.critical;
+        document.getElementById('nextDigest').textContent    = formatNextDigest(d.nextDigest);
+      } catch {
+        document.getElementById('statusDot').className    = 'status-dot offline';
+        document.getElementById('statusText').textContent  = 'offline';
+      }
+    }
+
+    async function fetchSummary() {
+      try {
+        const res = await fetch(API_BASE + '/events/summary');
+        const d   = await res.json();
+        document.getElementById('card-critical').textContent = d.bySeverity.critical ?? 0;
+        document.getElementById('card-warning').textContent  = d.bySeverity.warning  ?? 0;
+        document.getElementById('card-info').textContent     = d.bySeverity.info     ?? 0;
+      } catch { /* non-fatal */ }
+    }
+
+    async function fetchEvents() {
+      try {
+        const res    = await fetch(API_BASE + '/events' + buildQuery());
+        const events = await res.json();
+
+        // Keep node filter populated with every node we've ever seen
+        events.forEach(e => { if (e.node) seenNodes.add(e.node); });
+        const nodeSelect  = document.getElementById('filterNode');
+        const currentNode = nodeSelect.value;
+        nodeSelect.innerHTML =
+          '<option value="">All nodes</option>' +
+          [...seenNodes].sort().map(n =>
+            `<option value="${n}"${n === currentNode ? ' selected' : ''}>${n}</option>`
+          ).join('');
+
+        renderEvents(events);
+      } catch {
+        document.getElementById('eventsBody').innerHTML =
+          '<tr><td colspan="6" class="empty">Failed to load events.</td></tr>';
+      }
+    }
+
+    function renderEvents(events) {
+      const count = events.length;
+      document.getElementById('eventCount').textContent =
+        `${count} event${count !== 1 ? 's' : ''}`;
+
+      if (count === 0) {
+        document.getElementById('eventsBody').innerHTML =
+          '<tr><td colspan="6" class="empty">No events match the current filters.</td></tr>';
+        return;
+      }
+
+      document.getElementById('eventsBody').innerHTML = events.map(e => {
+        const node  = e.node
+          ? escHtml(e.node)
+          : '<span class="node-cluster">cluster</span>';
+        const route = e._route || '—';
+        return `
+          <tr>
+            <td class="ts">${formatTime(e.timestamp)}</td>
+            <td><span class="badge ${e.severity}">${e.severity}</span></td>
+            <td>${node}</td>
+            <td style="color:var(--text-dim)">${escHtml(e.type)}</td>
+            <td>${escHtml(e.subject)}</td>
+            <td><span class="route-tag ${e._route || ''}">${route}</span></td>
+          </tr>`;
+      }).join('');
+    }
+
+    // ── Refresh loop ───────────────────────────────────────
+    async function refresh() {
+      await Promise.all([fetchStatus(), fetchSummary(), fetchEvents()]);
+      countdown = 30;
+      document.getElementById('refreshInfo').textContent = `Auto-refresh in ${countdown}s`;
+    }
+
+    function startCountdown() {
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        countdown--;
+        document.getElementById('refreshInfo').textContent = `Auto-refresh in ${countdown}s`;
+        if (countdown <= 0) refresh();
+      }, 1000);
+    }
+
+    // ── Event listeners ────────────────────────────────────
+    ['filterSeverity', 'filterNode', 'filterSince'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        countdown = 30;
+        fetchEvents();
+      });
+    });
+
+    document.getElementById('sendDigest').addEventListener('click', async () => {
+      const btn = document.getElementById('sendDigest');
+      btn.disabled    = true;
+      btn.textContent = 'Sending…';
+      try {
+        const res = await fetch(API_BASE + '/digest/send', { method: 'POST' });
+        const d   = await res.json();
+        if (d.ok) toast('Digest sent successfully.');
+        else      toast('Send failed: ' + d.error, 'error');
+      } catch (err) {
+        toast('Send failed: ' + err.message, 'error');
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Send Digest Now';
+      }
+    });
+
+    // ── Init ───────────────────────────────────────────────
+    refresh().then(startCountdown);
+  </script>
+
+</body>
+</html>
